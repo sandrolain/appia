@@ -1,5 +1,5 @@
 
-export type RouterSourceListener = (state: any) => void;
+export type RouterSourceListener = (path: string, state: any) => void;
 
 export abstract class RouterSource {
 
@@ -10,8 +10,9 @@ export abstract class RouterSource {
   }
 
   dispatch (data: any): void {
+    const path = this.getCurrentPath();
     for(const fn of this.listeners) {
-      fn(data);
+      fn(path, data);
     }
   }
 

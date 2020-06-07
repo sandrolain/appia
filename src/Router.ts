@@ -1,4 +1,4 @@
-import { getPathMatcher, PathMatcherFunction } from "htna-tools/dist/esm/url";
+import { getPathMatcher, PathMatcherFunction, PathParams } from "htna-tools/dist/esm/url";
 import { RouterSource } from "./RouterSource";
 
 // TODO: docs
@@ -14,7 +14,7 @@ export interface RouteCallbackInfo {
   match: boolean;
   path: string;
   routePath: string;
-  params: Record<string, string>;
+  params: PathParams;
   searchParams: URLSearchParams;
   data: any;
 }
@@ -83,7 +83,11 @@ export class Router {
     this.routes = this.routes.filter((route) => (route.path !== path));
   }
 
-  check (fullPath: string, data: any): void {
+  listen (): void {
+    this.source.listen((path: string, data: any) => this.check(path, data));
+  }
+
+  private check (fullPath: string, data: any): void {
     // TODO: verify if inside root
     // TODO: callback exit
     const path   = this.getPath(fullPath);
@@ -113,29 +117,6 @@ export class Router {
     }
   }
 
-  checkCurrentPath (data?: any): void {
-    this.check(this.source.getCurrentPath(), data);
-  }
-
-  listen (): void {
-    this.source.listen((data: any) => {
-      this.checkCurrentPath(data);
-    });
-  }
-
-  getFullPath (path: string): string {
-    return this.root + this.cleanSlashes(path || "");
-  }
-
-  isCurrentPath (path: string): boolean {
-    path = this.source.cleanPath(path);
-    path = this.cleanSlashes(path || "");
-
-    const actPath = this.getCurrentPath();
-
-    return (actPath === path);
-  }
-
   navigate (destination: {path: string; title?: string; data?: any} | string): void {
     if(typeof destination === "string") {
       destination = { path: destination };
@@ -151,10 +132,30 @@ export class Router {
       data = { path, title };
     }
 
-    if(this.isCurrentPath(path)) {
+    const actPath = this.getCurrentPath();
+
+    if(actPath === path) {
       this.source.replaceState(data, title, path);
     } else {
       this.source.pushState(data, title, path);
     }
+  }
+
+  isCurrentPath (path: string, caseInsensitive: boolean = false): { params: PathParams; searchParams: URLSearchParams } | false {
+    const matcher = getPathMatcher(path, caseInsensitive);
+
+    const fullPath = this.source.getCurrentPath();
+    const currentPath   = this.getPath(fullPath);
+    const search = this.getSearch(fullPath);
+    const params  = matcher(currentPath);
+
+    if(params) {
+      return {
+        params,
+        searchParams: new URLSearchParams(search)
+      };
+    }
+
+    return false;
   }
 }
