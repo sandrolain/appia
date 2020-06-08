@@ -9,7 +9,7 @@ export default [
     output: {
       file: "dist/umd/index.js",
       format: "umd",
-      name: "romea",
+      name: "appia",
       esModule: false,
       sourcemap: true
     },
