@@ -11,10 +11,11 @@ export interface Route {
 
 // TODO: docs
 export interface RouteCallbackInfo {
-  match: boolean;
-  path: string;
   routePath: string;
+  match: boolean;
   params: PathParams;
+  pathname: string;
+  search: string;
   searchParams: URLSearchParams;
   data: any;
 }
@@ -30,38 +31,21 @@ type RouteItem = Route & {
 // TODO: test
 export class Router {
   private routes: RouteItem[] = [];
-  private root: string = "";
 
   constructor (private source: RouterSource) {
     this.listen();
   }
 
-  // TODO: docs
-  // TODO: test
-  setRoot (root: string = ""): void {
-    this.root = this.cleanSlashes(root);
-  }
-
-  getRoot (): string {
-    return this.root;
-  }
-
-  private cleanSlashes (path: string): string {
-    return path.replace(/\/$/, "");
-  }
-
-  private getPath (fullPath: string): string {
-    return this.cleanSlashes(decodeURI(fullPath))
-      .replace(/\?(.*)$/, "")
-      .replace(new RegExp(`^${this.root}`), "");
-  }
-
-  private getSearch (fullPath: string): string {
-    return decodeURI(fullPath).split("?")[1] || "";
+  private parsePath (fullPath: string): { pathname: string; search: string } {
+    const parts = fullPath.split("?");
+    return {
+      pathname: parts[0],
+      search: parts[1] ? `?${parts[1]}` : ""
+    };
   }
 
   private getCurrentPath (): string {
-    return this.getPath(this.source.getCurrentPath());
+    return this.source.getCurrentPath();
   }
 
   addRoutes (routes: Route[]): void {
@@ -90,26 +74,27 @@ export class Router {
   private check (fullPath: string, data: any): void {
     // TODO: verify if inside root
     // TODO: callback exit
-    const path   = this.getPath(fullPath);
-    const search = this.getSearch(fullPath);
+    const { pathname, search } = this.parsePath(fullPath);
     for(const route of this.routes.values()) {
       const routePath = route.path;
-      const params = route.matcher(path);
+      const params    = route.matcher(pathname);
       if(params) {
         route.callback({
           match: true,
-          path,
+          pathname,
           routePath,
           params,
+          search,
           searchParams: new URLSearchParams(search),
           data
         });
       } else if(route.callbackUnmatch) {
         route.callbackUnmatch({
           match: false,
-          path,
+          pathname,
           routePath,
           params: null,
+          search,
           searchParams: new URLSearchParams(search),
           data
         });
@@ -117,45 +102,30 @@ export class Router {
     }
   }
 
-  navigate (destination: {path: string; title?: string; data?: any} | string): void {
-    if(typeof destination === "string") {
-      destination = { path: destination };
-    }
+  checkCurrentPath (): void {
+    this.check(this.source.getCurrentPath(), null);
+  }
 
-    // eslint-disable-next-line prefer-const
-    let { path, title, data } = destination;
-
+  navigate ({ path, title, data }: { path: string; title?: string; data?: any }): void {
     path = this.source.cleanPath(path);
-    path = this.cleanSlashes(path || "");
-
-    if(!data) {
-      data = { path, title };
-    }
-
-    const actPath = this.getCurrentPath();
-
-    if(actPath === path) {
+    if(path === this.getCurrentPath()) {
       this.source.replaceState(data, title, path);
     } else {
       this.source.pushState(data, title, path);
     }
   }
 
-  isCurrentPath (path: string, caseInsensitive: boolean = false): { params: PathParams; searchParams: URLSearchParams } | false {
+  isCurrentPath (path: string, caseInsensitive: boolean = false): { pathname: string; params: PathParams; searchParams: URLSearchParams } | false {
+    const { pathname, search } = this.parsePath(this.getCurrentPath());
     const matcher = getPathMatcher(path, caseInsensitive);
-
-    const fullPath = this.source.getCurrentPath();
-    const currentPath   = this.getPath(fullPath);
-    const search = this.getSearch(fullPath);
-    const params  = matcher(currentPath);
-
+    const params  = matcher(pathname);
     if(params) {
       return {
+        pathname,
         params,
         searchParams: new URLSearchParams(search)
       };
     }
-
     return false;
   }
 }
