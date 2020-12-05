@@ -3,12 +3,13 @@ import { Router } from "../dist/esm/index.js";
 export function init (source) {
   const rout   = new Router(source);
 
-  rout.setRoot("/path");
+  const basePath = window.location.pathname.replace(/\/$/, "");
 
   rout.addRoute({
-    path: "/to/:dest",
+    path: `${basePath}/path/to/:dest`,
     callback: (data) => {
       console.log("match", data);
+      console.log("search", data.searchParams.get("foo"))
     },
     callbackUnmatch: (data) => {
       console.log("unmatch", data);
@@ -16,7 +17,7 @@ export function init (source) {
   });
 
   rout.addRoute({
-    path: "/to/bbb",
+    path: `${basePath}/path/to/bbb`,
     callback: (data) => {
       console.log("bbb", data);
     },
@@ -25,11 +26,13 @@ export function init (source) {
     }
   });
 
-  document.querySelectorAll("a").forEach(($a) => {
-    $a.addEventListener("click", (e) => {
+  document.addEventListener("click", (e) => {
+    if(e.target.nodeName === "A") {
       e.preventDefault();
-      rout.navigate($a.getAttribute("href"));
-    });
+      rout.navigate({
+        path: e.target.getAttribute("href")
+      });
+    }
   });
 
   rout.checkCurrentPath();
