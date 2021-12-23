@@ -1,0 +1,15 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  padding: 20px;
+  background: #FFF;
+  color: #000;
+  font-family: sans-serif;
+}
+iframe {
+  width: 100%;
+  border: 1px dashed darkblue;
+  vertical-align: top;
+  box-sizing: border-box;
+  min-height: 50vh;
+}

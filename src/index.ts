@@ -6,3 +6,4 @@ export * from "./router/RouterVirtualSource";
 export * from "./frontends/FrontendsManager";
 export * from "./frontends/FrontendsRouter";
 export * from "./frontends/AppiaRouter";
+export * from "./frontends/AppiaFrontendElement";

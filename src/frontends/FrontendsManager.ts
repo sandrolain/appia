@@ -1,3 +1,5 @@
+import { AppiaFrontendElement } from "./AppiaFrontendElement";
+
 export type FrontendHookName = "prepare" | "created";
 export type FrontendHookCallback = (frontend: Frontend, el: HTMLElement) => any;
 export type FrontendValidationCallback = () => boolean | Promise<boolean>;
@@ -8,7 +10,11 @@ interface AbstractFrontend {
   target: FrontendTarget;
   hooks?: Record<FrontendHookName, FrontendHookCallback>;
   validate?: FrontendValidationCallback;
-  imports?: FrontendImports;
+  assets?: {
+    styles?: FrontendImports;
+    scripts?: FrontendImports;
+    modules?: FrontendImports;
+  };
   shadowed?: boolean;
 }
 
@@ -33,7 +39,11 @@ export interface HtmlFrontend extends AbstractFrontend, ElementAttributes {
   src: string;
 }
 
-export type Frontend = ElementFrontend | IframeFrontend | HtmlFrontend;
+export interface EmptyFrontend extends AbstractFrontend, ElementAttributes {
+  type: "empty";
+}
+
+export type Frontend = ElementFrontend | IframeFrontend | HtmlFrontend | EmptyFrontend;
 
 
 export type FrontendManagerContainer = Document | HTMLElement;
@@ -43,8 +53,87 @@ export interface FrontendsManagerConfiguration {
 }
 
 export class FrontendsManager {
+  private static importedAssets = {
+    styles: new Set(),
+    scripts: new Set(),
+    modules: new Set()
+  };
+
+  private static async importStyle (url: string): Promise<boolean> {
+    if(this.importedAssets.styles.has(url)) {
+      return false;
+    }
+    const style = this.createStyle(url);
+    document.body.appendChild(style);
+    this.importedAssets.styles.add(url);
+    return true;
+  }
+
+  private static createStyle (url: string): HTMLStyleElement {
+    const style = document.createElement("style");
+    style.setAttribute("data-appia-style", url);
+    style.innerHTML = `@import url("${url}");`;
+    return style;
+  }
+
+  private static async importScript (url: string): Promise<boolean> {
+    if(this.importedAssets.scripts.has(url)) {
+      return false;
+    }
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.setAttribute("type", "text/javascript");
+      script.setAttribute("data-appia-script", url);
+      script.setAttribute("src", url);
+      script.addEventListener("load", () => resolve(true));
+      script.addEventListener("error", () => reject(new Error(`Cannot import script asset "${url}"`)));
+      document.body.appendChild(script);
+      this.importedAssets.scripts.add(url);
+    });
+  }
+
+  private static async importModule (url: string): Promise<boolean> {
+    if(this.importedAssets.modules.has(url)) {
+      return false;
+    }
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.setAttribute("type", "module");
+      script.setAttribute("data-appia-script", url);
+      script.setAttribute("src", url);
+      script.addEventListener("load", () => resolve(true));
+      script.addEventListener("error", () => reject(new Error(`Cannot import module asset "${url}"`)));
+      document.body.appendChild(script);
+      this.importedAssets.modules.add(url);
+    });
+  }
+
+  private static importAssets (frontend: Frontend): HTMLStyleElement[] {
+    const result: HTMLStyleElement[] = [];
+    if(frontend.assets?.scripts) {
+      for(const url of frontend.assets.scripts) {
+        this.importScript(url);
+      }
+    }
+    if(frontend.assets?.modules) {
+      for(const url of frontend.assets.modules) {
+        this.importModule(url);
+      }
+    }
+    if(frontend.assets?.styles) {
+      for(const url of frontend.assets.styles) {
+        if(frontend.shadowed) {
+          result.push(this.createStyle(url));
+        } else {
+          this.importStyle(url);
+        }
+      }
+    }
+    return result;
+  }
+
   private config: FrontendsManagerConfiguration;
-  private targetsFrontends: WeakMap<HTMLElement | ShadowRoot, HTMLElement> = new WeakMap();
+  private targetsFrontends: WeakMap<HTMLElement, AppiaFrontendElement> = new WeakMap();
 
   constructor (config: Partial<FrontendsManagerConfiguration> = {}) {
     this.config = {
@@ -82,47 +171,48 @@ export class FrontendsManager {
     case "element": el = await this.applyElementFrontend(frontend, target); break;
     case "iframe": el = await this.applyIframeFrontend(frontend, target); break;
     case "html": el = await this.applyHtmlFrontend(frontend, target); break;
+    case "empty": el = await this.applyEmptyFrontend(frontend, target); break;
     }
 
     this.callHook(el, frontend, "created");
     return el;
   }
 
+  private async applyEmptyFrontend (frontend: EmptyFrontend, target: HTMLElement): Promise<HTMLElement> {
+    const styles = FrontendsManager.importAssets(frontend);
+    const feEl = this.getChachedChild(target);
+    feEl.setChild(frontend, styles);
+    return feEl;
+  }
+
   private async applyElementFrontend (frontend: ElementFrontend, target: HTMLElement): Promise<HTMLElement> {
-    const shadowedTarget = this.getShadowed(frontend, target);
-    const el = this.getChachedChild(shadowedTarget, () => {
-      return this.getDocument().createElement(frontend.tagName);
-    });
+    const styles = FrontendsManager.importAssets(frontend);
+    const feEl = this.getChachedChild(target);
+    const el = this.getDocument().createElement(frontend.tagName);
     this.applyElementAttributes(el, frontend);
-    this.setChild(shadowedTarget, el);
-    return el;
+    feEl.setChild(frontend, styles, el);
+    return feEl;
   }
 
   private async applyHtmlFrontend (frontend: HtmlFrontend, target: HTMLElement): Promise<HTMLElement> {
-    const shadowedTarget = this.getShadowed(frontend, target);
-    const el = this.getChachedChild(shadowedTarget, () => {
-      const div = this.getDocument().createElement("div");
-      div.style.display = "contents";
-      return div;
-    });
+    const styles = FrontendsManager.importAssets(frontend);
+    const feEl = this.getChachedChild(target);
     const response = await fetch(frontend.src);
-    el.innerHTML = await response.text();
-    this.applyElementAttributes(el, frontend);
-    this.setChild(shadowedTarget, el);
-    return el;
+    const html = await response.text();
+    feEl.setHTML(frontend, styles, html);
+    return feEl;
   }
 
   private async applyIframeFrontend (frontend: IframeFrontend, target: HTMLElement): Promise<HTMLElement> {
-    const shadowedTarget = this.getShadowed(frontend, target);
+    const styles = FrontendsManager.importAssets(frontend);
 
     let el: HTMLIFrameElement;
     if(target instanceof HTMLIFrameElement) {
       el = target;
-    } else if(shadowedTarget.firstElementChild instanceof HTMLIFrameElement) {
-      el = shadowedTarget.firstElementChild;
     } else {
+      const feEl = this.getChachedChild(target);
       el = this.getDocument().createElement("iframe");
-      this.setChild(shadowedTarget, el);
+      feEl.setChild(frontend, styles, el);
     }
 
     el.setAttribute("src", frontend.src);
@@ -131,32 +221,14 @@ export class FrontendsManager {
     return el;
   }
 
-  private getChachedChild (target: HTMLElement | ShadowRoot, cb: () => HTMLElement): HTMLElement {
+  private getChachedChild (target: HTMLElement): AppiaFrontendElement {
     let el = this.targetsFrontends.get(target);
     if(!el) {
-      el = cb();
+      el = document.createElement("appia-frontend");
+      target.appendChild(el);
       this.targetsFrontends.set(target, el);
     }
     return el;
-  }
-
-  private getShadowed (frontend: Frontend, target: HTMLElement): HTMLElement | ShadowRoot {
-    if(frontend.shadowed) {
-      if(target.shadowRoot) {
-        return target.shadowRoot;
-      }
-      return target.attachShadow({
-        mode: "open"
-      });
-    }
-    return target;
-  }
-
-  private setChild (target: HTMLElement | ShadowRoot, child: HTMLElement): void {
-    if(target.firstElementChild !== child) {
-      target.textContent = "";
-      target.appendChild(child);
-    }
   }
 
   private applyElementAttributes (el: HTMLElement, attrs: ElementAttributes): void {

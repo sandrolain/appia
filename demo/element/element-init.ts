@@ -1,5 +1,5 @@
-import "./appia/index.js";
-import { anchorsToRouterNavigation } from "./utils.js";
+import "../appia/index.js";
+import { anchorsToRouterNavigation } from "../utils.js";
 
 const router = document.querySelector("appia-router");
 router.source = "hash";
@@ -9,7 +9,10 @@ router.routes = [
     frontends: [{
       type: "iframe",
       target: "#left",
-      src: "/index.html"
+      src: "/element/assets/frame-red.html"
+    }, {
+      type: "empty",
+      target: "#right"
     }]
   },
   {
@@ -17,7 +20,12 @@ router.routes = [
     frontends: [{
       type: "iframe",
       target: "#right",
-      src: "/index.html",
+      src: "/element/assets/frame-blue.html",
+      assets: {
+        styles: [
+          "/element/assets/frame-blue.css"
+        ]
+      },
       shadowed: true
     }]
   },
@@ -26,7 +34,7 @@ router.routes = [
     frontends: [{
       type: "iframe",
       target: "#left",
-      src: "/element.html"
+      src: "/element/assets/frame-blue.html"
     }]
   }
 ];

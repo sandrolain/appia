@@ -18,8 +18,9 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:coverage:open": "jest --coverage && open ./coverage/lcov-report/index.html",
-    "demo:prepare": "npm run build && cp -R ./dist/ ./demo/appia/ && cd ./demo && tsc -b tsconfig.json",
-    "demo:serve": "npm run demo:prepare && http-server ./demo -o /",
+    "demo:prepare": "npm run build && cp -R ./dist/ ./demo/appia/",
+    "demo:build": "cd ./demo && tsc -b tsconfig.json",
+    "demo:serve": "npm run demo:prepare && npm run demo:build && http-server ./demo -o /",
     "docs:build": "npx typedoc ./src",
     "docs:serve": "npm run docs:build && npx open-cli ./docs/typedocs/index.html"
   },
