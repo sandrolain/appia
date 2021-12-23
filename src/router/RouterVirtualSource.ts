@@ -13,11 +13,18 @@ export class RouterVirtualSource extends RouterSource {
     return this.actualPath;
   }
 
+  private listener: () => void;
+
   initDispatcher (): void {
-    window.addEventListener("router:notify", () => {
+    this.listener = (): void => {
       const { data } = this.pathData.get(this.getCurrentPath()) || {};
       this.dispatch(data);
-    });
+    };
+    window.addEventListener("router:notify", this.listener);
+  }
+
+  public teardown (): void {
+    window.removeEventListener("router:notify", this.listener);
   }
 
   replaceState (data: any, title: string, fullPath: string): void {

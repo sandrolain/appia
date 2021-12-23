@@ -1,11 +1,11 @@
-import { getPathMatcher, PathMatcherFunction, PathParams } from "htna-tools/dist/esm/url";
+import { getPathMatcher, PathMatcherFunction, PathParams } from "./url";
 import { RouterSource } from "./RouterSource";
 
 // TODO: docs
 export interface Route {
   path: string;
   caseInsensitive?: boolean;
-  callback: RouteCallback;
+  callback?: RouteCallback;
   callbackUnmatch?: RouteCallback;
 }
 
@@ -13,7 +13,7 @@ export interface Route {
 export interface RouteCallbackInfo {
   routePath: string;
   match: boolean;
-  params: PathParams;
+  pathParams: PathParams;
   pathname: string;
   search: string;
   searchParams: URLSearchParams;
@@ -23,6 +23,12 @@ export interface RouteCallbackInfo {
 // TODO: docs
 export type RouteCallback = (info: RouteCallbackInfo) => any;
 
+export interface RouterNavigation {
+  path: string;
+  title?: string;
+  data?: any;
+}
+
 type RouteItem = Route & {
   matcher: PathMatcherFunction;
 }
@@ -31,9 +37,21 @@ type RouteItem = Route & {
 // TODO: test
 export class Router {
   private routes: RouteItem[] = [];
+  private listener: (path: string, data: any) => void;
 
-  constructor (private source: RouterSource) {
+  constructor (
+    private source: RouterSource
+  ) {
     this.listen();
+  }
+
+  listen (): void {
+    this.listener = (path: string, data: any): void => this.check(path, data);
+    this.source.listen(this.listener);
+  }
+
+  teardown (): void {
+    this.source.unlisten(this.listener);
   }
 
   private parsePath (fullPath: string): { pathname: string; search: string } {
@@ -67,8 +85,8 @@ export class Router {
     this.routes = this.routes.filter((route) => (route.path !== path));
   }
 
-  listen (): void {
-    this.source.listen((path: string, data: any) => this.check(path, data));
+  removeAllRoutes (): void {
+    this.routes = [];
   }
 
   private check (fullPath: string, data: any): void {
@@ -76,24 +94,26 @@ export class Router {
     // TODO: callback exit
     const { pathname, search } = this.parsePath(fullPath);
     for(const route of this.routes.values()) {
-      const routePath = route.path;
-      const params    = route.matcher(pathname);
-      if(params) {
-        route.callback({
-          match: true,
-          pathname,
-          routePath,
-          params,
-          search,
-          searchParams: new URLSearchParams(search),
-          data
-        });
+      const routePath  = route.path;
+      const pathParams = route.matcher(pathname);
+      if(pathParams) {
+        if(route.callback) {
+          route.callback({
+            match: true,
+            pathname,
+            routePath,
+            pathParams,
+            search,
+            searchParams: new URLSearchParams(search),
+            data
+          });
+        }
       } else if(route.callbackUnmatch) {
         route.callbackUnmatch({
           match: false,
           pathname,
           routePath,
-          params: null,
+          pathParams: {},
           search,
           searchParams: new URLSearchParams(search),
           data
@@ -106,7 +126,7 @@ export class Router {
     this.check(this.source.getCurrentPath(), null);
   }
 
-  navigate ({ path, title, data }: { path: string; title?: string; data?: any }): void {
+  navigate ({ path, title, data }: RouterNavigation): void {
     path = this.source.cleanPath(path);
     if(path === this.getCurrentPath()) {
       this.source.replaceState(data, title, path);

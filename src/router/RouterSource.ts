@@ -20,7 +20,13 @@ export abstract class RouterSource {
     this.listeners.push(listener);
   }
 
+  unlisten (listener: RouterSourceListener): void {
+    this.listeners = this.listeners.filter((cb) => (cb !== listener));
+  }
+
   protected abstract initDispatcher (): void;
+
+  public abstract teardown (): void;
 
   // TODO: docs
   public abstract getCurrentPath (): string;

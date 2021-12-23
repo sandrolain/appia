@@ -1,10 +1,10 @@
-<a href="/demo/hash/path/to/aaa">To AAA</a>
-<a href="/demo/hash/path/to/bbb?foo=bar">To BBB</a>
-<a href="/demo/hash/path/to/ccc">To CCC</a>
+<a href="/path/to/aaa">To AAA</a>
+<a href="/path/to/bbb?foo=bar">To BBB</a>
+<a href="/path/to/ccc">To CCC</a>
 
 <script type="module">
-  import { RouterHashSource } from "../dist/esm/index.js";
-  import { init } from "./router-init.js";
+  import { RouterHashSource } from "/esm/index.js";
+  import { init } from "/router-init.js";
   const source = new RouterHashSource();
   init(source);
 </script>

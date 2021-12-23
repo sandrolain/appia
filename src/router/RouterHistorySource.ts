@@ -3,13 +3,19 @@ import { RouterSource } from "./RouterSource";
 // TODO: test
 // TODO: docs
 export class RouterHistorySource extends RouterSource {
-
   getCurrentPath (): string {
     return location.pathname + location.search;
   }
 
+  private listener: (event: PopStateEvent) => void;
+
   initDispatcher (): void {
-    window.addEventListener("popstate", (e) => this.dispatch(e.state));
+    this.listener = (event): void => this.dispatch(event.state);
+    window.addEventListener("popstate", this.listener);
+  }
+
+  public teardown (): void {
+    window.removeEventListener("popstate", this.listener);
   }
 
   replaceState (data: any, title: string, path: string): void {

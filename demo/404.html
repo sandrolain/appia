@@ -1,0 +1,10 @@
+<a href="/path/to/aaa">To AAA</a><br/>
+<a href="/path/to/bbb?foo=bar">To BBB</a><br/>
+<a href="/path/to/ccc">To CCC</a>
+
+<script type="module">
+  import { RouterHistorySource } from "/esm/index.js";
+  import { init } from "/router-init.js";
+  const source = new RouterHistorySource();
+  init(source);
+</script>

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+html, body {
+  margin: 0;
+  padding: 0;
+}
+#cnt {
+  display: flex;
+  gap: 20px;
+  padding: 20px;
+}
+#left, #right {
+  width: 50%;
+  border: 1px solid #999;
+}
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a href="/route/one">One</a> -
+      <a href="/route/two">Two</a> -
+      <a href="/route/three">Three</a>
+    </nav>
+    <appia-router>
+      <div id="cnt">
+        <div id="left"></div>
+        <div id="right"></div>
+      </div>
+    </appia-router>
+    <script type="module" src="./element-init.js"></script>
+  </body>
+</html>

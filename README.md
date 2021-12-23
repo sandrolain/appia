@@ -1,3 +1,2 @@
-# APPIA
+# APPIA: Routing and Frontends library
 
-## Simple routing library with customizable sources

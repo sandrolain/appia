@@ -5,42 +5,20 @@ import del from "rollup-plugin-delete";
 
 export default [
   {
-    input: "src/index.ts",
-    output: {
-      file: "dist/umd/index.js",
-      format: "umd",
-      name: "appia",
-      esModule: false,
-      sourcemap: true
-    },
-    plugins: [
-      del({
-        targets: ["./dist/umd/*"]
-      }),
-      typescript({
-        typescript: require("typescript")
-      }),
-      terser({
-        output: {
-          comments: false
-        }
-      })
-    ]
-  },
-  {
     input: {
       index: "src/index.ts"
     },
     output: [
       {
-        dir: "./dist/esm",
+        dir: "./dist",
         format: "esm",
+        name: "appia",
         sourcemap: true
       }
     ],
     plugins: [
       del({
-        targets: ["./dist/esm/*"]
+        targets: ["./dist/*"]
       }),
       typescript({
         typescript: require("typescript")

@@ -10,11 +10,18 @@ export class RouterHashSource extends RouterSource {
     return location.hash.replace(/^[^/]+/, "");
   }
 
+  private listener: () => void;
+
   initDispatcher (): void {
-    window.addEventListener("hashchange", () => {
+    this.listener = (): void => {
       const { data } = this.pathData.get(this.getCurrentPath()) || {};
       this.dispatch(data);
-    });
+    };
+    window.addEventListener("hashchange", this.listener);
+  }
+
+  public teardown (): void {
+    window.removeEventListener("hashchange", this.listener);
   }
 
   replaceState (data: any, title: string, fullPath: string): void {

@@ -5,6 +5,7 @@
     "allowSyntheticDefaultImports": true,
     "allowJs": false,
     "target": "es2015",
+    "experimentalDecorators": true,
     "moduleResolution": "node",
     "removeComments": false,
     "noImplicitAny": true,
