@@ -18,14 +18,12 @@ router.routes = [
         route: "/route/two",
         frontends: [{
                 type: "iframe",
+                target: "#left",
+                src: "/element/assets/frame-red.html"
+            }, {
+                type: "external",
                 target: "#right",
-                src: "/element/assets/frame-blue.html",
-                assets: {
-                    styles: [
-                        "/element/assets/frame-blue.css"
-                    ]
-                },
-                shadowed: true
+                src: "/element/assets/frame-blue.json"
             }]
     },
     {
@@ -34,6 +32,28 @@ router.routes = [
                 type: "iframe",
                 target: "#left",
                 src: "/element/assets/frame-blue.html"
+            }, {
+                type: "iframe",
+                target: "#right",
+                src: "data:text/plain;,Text from data-src"
+            }]
+    },
+    {
+        route: "/route/four",
+        frontends: [{
+                type: "element",
+                target: "#left",
+                assets: {
+                    modules: [
+                        "/element/assets/my-element.js"
+                    ]
+                },
+                tagName: "my-element"
+            }, {
+                type: "html",
+                target: "#right",
+                shadowed: true,
+                src: "/element/assets/html-fragment.html"
             }]
     }
 ];

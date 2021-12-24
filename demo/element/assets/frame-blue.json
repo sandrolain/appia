@@ -1,0 +1,10 @@
+{
+  "type": "iframe",
+  "src": "/element/assets/frame-blue.html",
+  "assets": {
+    "styles": [
+      "/element/assets/frame-blue.css"
+    ]
+  },
+  "shadowed": true
+}

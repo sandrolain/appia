@@ -39,11 +39,16 @@ export interface HtmlFrontend extends AbstractFrontend, ElementAttributes {
   src: string;
 }
 
+export interface ExternalFrontend extends AbstractFrontend, ElementAttributes {
+  type: "external";
+  src: string;
+}
+
 export interface EmptyFrontend extends AbstractFrontend, ElementAttributes {
   type: "empty";
 }
 
-export type Frontend = ElementFrontend | IframeFrontend | HtmlFrontend | EmptyFrontend;
+export type Frontend = ElementFrontend | IframeFrontend | HtmlFrontend | EmptyFrontend | ExternalFrontend;
 
 
 export type FrontendManagerContainer = Document | HTMLElement;
@@ -132,6 +137,18 @@ export class FrontendsManager {
     return result;
   }
 
+  private static externalFrontends: Map<string, Frontend> = new Map();
+
+  private static async getExternalFrontend (src: string): Promise<Frontend> {
+    if(this.externalFrontends.has(src)) {
+      return this.externalFrontends.get(src);
+    }
+    const response         = await fetch(src);
+    const externalFrontend = await response.json() as Frontend;
+    this.externalFrontends.set(src, externalFrontend);
+    return externalFrontend;
+  }
+
   private config: FrontendsManagerConfiguration;
   private targetsFrontends: WeakMap<HTMLElement, AppiaFrontendElement> = new WeakMap();
 
@@ -159,66 +176,94 @@ export class FrontendsManager {
 
   async applyFrontend (frontend: Frontend): Promise<HTMLElement> {
     const target = this.getTarget(frontend);
+
     if(!target) {
       throw new Error("Target not available");
     }
 
+    this.callHook(null, frontend, "prepare");
+
+    const el = await  this.applyFrontendType(frontend, target);
+
+    this.callHook(el, frontend, "created");
+
+    return el;
+  }
+
+  private async applyFrontendType (frontend: Frontend, target: HTMLElement): Promise<HTMLElement> {
     let el: HTMLElement;
-
-    this.callHook(el, frontend, "prepare");
-
     switch(frontend.type) {
     case "element": el = await this.applyElementFrontend(frontend, target); break;
     case "iframe": el = await this.applyIframeFrontend(frontend, target); break;
     case "html": el = await this.applyHtmlFrontend(frontend, target); break;
     case "empty": el = await this.applyEmptyFrontend(frontend, target); break;
+    case "external": el = await this.applyExternalFrontend(frontend, target); break;
     }
-
-    this.callHook(el, frontend, "created");
     return el;
   }
 
+  private async applyExternalFrontend (frontend: ExternalFrontend, target: HTMLElement): Promise<HTMLElement> {
+    const externalFrontend = await FrontendsManager.getExternalFrontend(frontend.src);
+
+    const frontendCopy = { ...frontend };
+    delete frontendCopy.type;
+    delete frontendCopy.src;
+
+    return this.applyFrontendType({
+      ...externalFrontend,
+      ...frontendCopy
+    }, target);
+  }
+
   private async applyEmptyFrontend (frontend: EmptyFrontend, target: HTMLElement): Promise<HTMLElement> {
-    const styles = FrontendsManager.importAssets(frontend);
     const feEl = this.getChachedChild(target);
-    feEl.setChild(frontend, styles);
+    if(feEl.isChanged(frontend)) {
+      const styles = FrontendsManager.importAssets(frontend);
+      feEl.setChild(frontend, styles);
+    }
     return feEl;
   }
 
   private async applyElementFrontend (frontend: ElementFrontend, target: HTMLElement): Promise<HTMLElement> {
-    const styles = FrontendsManager.importAssets(frontend);
     const feEl = this.getChachedChild(target);
-    const el = this.getDocument().createElement(frontend.tagName);
-    this.applyElementAttributes(el, frontend);
-    feEl.setChild(frontend, styles, el);
+    if(feEl.isChanged(frontend)) {
+      const styles = FrontendsManager.importAssets(frontend);
+      const el = this.getDocument().createElement(frontend.tagName);
+      this.applyElementAttributes(el, frontend);
+      feEl.setChild(frontend, styles, el);
+    }
     return feEl;
   }
 
   private async applyHtmlFrontend (frontend: HtmlFrontend, target: HTMLElement): Promise<HTMLElement> {
-    const styles = FrontendsManager.importAssets(frontend);
-    const feEl = this.getChachedChild(target);
-    const response = await fetch(frontend.src);
-    const html = await response.text();
-    feEl.setHTML(frontend, styles, html);
+    const feEl     = this.getChachedChild(target);
+    if(feEl.isChanged(frontend)) {
+      const styles   = FrontendsManager.importAssets(frontend);
+      const response = await fetch(frontend.src);
+      const html     = await response.text();
+      feEl.setHTML(frontend, styles, html);
+    }
     return feEl;
   }
 
   private async applyIframeFrontend (frontend: IframeFrontend, target: HTMLElement): Promise<HTMLElement> {
-    const styles = FrontendsManager.importAssets(frontend);
-
-    let el: HTMLIFrameElement;
     if(target instanceof HTMLIFrameElement) {
-      el = target;
-    } else {
-      const feEl = this.getChachedChild(target);
-      el = this.getDocument().createElement("iframe");
-      feEl.setChild(frontend, styles, el);
+      FrontendsManager.importAssets(frontend);
+      const el = target;
+      el.setAttribute("src", frontend.src);
+      this.applyElementAttributes(el, frontend);
+      return el;
     }
 
-    el.setAttribute("src", frontend.src);
-    this.applyElementAttributes(el, frontend);
-
-    return el;
+    const feEl = this.getChachedChild(target);
+    if(feEl.isChanged(frontend)) {
+      const styles = FrontendsManager.importAssets(frontend);
+      const el = this.getDocument().createElement("iframe");
+      feEl.setChild(frontend, styles, el);
+      el.setAttribute("src", frontend.src);
+      this.applyElementAttributes(el, frontend);
+    }
+    return feEl;
   }
 
   private getChachedChild (target: HTMLElement): AppiaFrontendElement {

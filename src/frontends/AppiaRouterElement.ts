@@ -9,7 +9,7 @@ import { FrontendRoute, FrontendsRouter } from "./FrontendsRouter";
 import { Router, RouterNavigation } from "../router/Router";
 
 @customElement("appia-router")
-export class AppiaRouter extends LitElement {
+export class AppiaRouterElement extends LitElement {
   static styles = css`
     :host {
       display: contents;
@@ -116,6 +116,6 @@ export class AppiaRouter extends LitElement {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "appia-router": AppiaRouter;
+    "appia-router": AppiaRouterElement;
   }
 }
