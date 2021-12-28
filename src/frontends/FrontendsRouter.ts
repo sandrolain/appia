@@ -1,9 +1,9 @@
 import { Route, Router, RouterNavigation } from "../router/Router";
-import { Frontend, FrontendsManager } from "./FrontendsManager";
+import { FrontendConfig, FrontendsManager } from "./FrontendsManager";
 
 export interface FrontendRoute {
   route: Route | string;
-  frontends: Frontend[];
+  frontends: FrontendConfig[] | (() => (FrontendConfig[] | Promise<FrontendConfig[]>));
 }
 
 export class FrontendsRouter {
@@ -28,8 +28,9 @@ export class FrontendsRouter {
     const route: Route = (typeof frontendRoute.route === "string")  ? { path: frontendRoute.route } : frontendRoute.route;
     this.router.addRoute({
       ...route,
-      callback: (info) => {
-        for(const frontend of frontendRoute.frontends) {
+      callback: async (info) => {
+        const frontends = (typeof frontendRoute.frontends === "function") ? await frontendRoute.frontends() : frontendRoute.frontends;
+        for(const frontend of frontends) {
           this.manager.applyFrontend(frontend);
         }
         if(route.callback) {

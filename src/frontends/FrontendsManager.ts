@@ -8,6 +8,7 @@ export type FrontendTarget = string | HTMLElement;
 
 interface AbstractFrontend {
   target: FrontendTarget;
+  extend?: string;
   hooks?: Record<FrontendHookName, FrontendHookCallback>;
   validate?: FrontendValidationCallback;
   assets?: {
@@ -29,9 +30,11 @@ export interface ElementFrontend extends AbstractFrontend, ElementAttributes {
   tagName: string;
 }
 
-export interface IframeFrontend extends AbstractFrontend, ElementAttributes {
+export interface IFrameFrontend extends AbstractFrontend, ElementAttributes {
   type: "iframe";
   src: string;
+  adaptHeight?: boolean;
+  scrolling?: boolean;
 }
 
 export interface HtmlFrontend extends AbstractFrontend, ElementAttributes {
@@ -39,16 +42,19 @@ export interface HtmlFrontend extends AbstractFrontend, ElementAttributes {
   src: string;
 }
 
+export interface EmptyFrontend extends AbstractFrontend, ElementAttributes {
+  type: "empty";
+}
+
 export interface ExternalFrontend extends AbstractFrontend, ElementAttributes {
   type: "external";
   src: string;
 }
 
-export interface EmptyFrontend extends AbstractFrontend, ElementAttributes {
-  type: "empty";
-}
+export type Frontend = ElementFrontend | IFrameFrontend | HtmlFrontend | EmptyFrontend |ExternalFrontend;
 
-export type Frontend = ElementFrontend | IframeFrontend | HtmlFrontend | EmptyFrontend | ExternalFrontend;
+export type FrontendConfigCallback = () => (Frontend | Promise<Frontend>);
+export type FrontendConfig = Frontend | ExternalFrontend | FrontendConfigCallback;
 
 
 export type FrontendManagerContainer = Document | HTMLElement;
@@ -174,35 +180,44 @@ export class FrontendsManager {
     return this.getContainer().ownerDocument;
   }
 
-  async applyFrontend (frontend: Frontend): Promise<HTMLElement> {
-    const target = this.getTarget(frontend);
+  async applyFrontend (frontendConfig: FrontendConfig): Promise<HTMLElement> {
+    const frontend = (typeof frontendConfig === "function") ? await frontendConfig() : frontendConfig;
+    this.callHook(null, frontend, "prepare");
+    const el = await  this.applyFrontendType(frontend);
+    this.callHook(el, frontend, "created");
+    return el;
+  }
 
+  private async applyFrontendType (frontend: Frontend): Promise<HTMLElement> {
+    const target = this.getTarget(frontend);
     if(!target) {
       throw new Error("Target not available");
     }
 
-    this.callHook(null, frontend, "prepare");
-
-    const el = await  this.applyFrontendType(frontend, target);
-
-    this.callHook(el, frontend, "created");
-
-    return el;
-  }
-
-  private async applyFrontendType (frontend: Frontend, target: HTMLElement): Promise<HTMLElement> {
     let el: HTMLElement;
+
+    if(frontend.extend) {
+      const externalFrontend = await FrontendsManager.getExternalFrontend(frontend.extend);
+      frontend = {
+        ...externalFrontend,
+        ...{
+          ...frontend,
+          extend: undefined
+        }
+      };
+    }
+
     switch(frontend.type) {
     case "element": el = await this.applyElementFrontend(frontend, target); break;
-    case "iframe": el = await this.applyIframeFrontend(frontend, target); break;
+    case "iframe": el = await this.applyIFrameFrontend(frontend, target); break;
     case "html": el = await this.applyHtmlFrontend(frontend, target); break;
     case "empty": el = await this.applyEmptyFrontend(frontend, target); break;
-    case "external": el = await this.applyExternalFrontend(frontend, target); break;
+    case "external": el = await this.applyExternalFrontend(frontend); break;
     }
     return el;
   }
 
-  private async applyExternalFrontend (frontend: ExternalFrontend, target: HTMLElement): Promise<HTMLElement> {
+  private async applyExternalFrontend (frontend: ExternalFrontend): Promise<HTMLElement> {
     const externalFrontend = await FrontendsManager.getExternalFrontend(frontend.src);
 
     const frontendCopy = { ...frontend };
@@ -212,7 +227,7 @@ export class FrontendsManager {
     return this.applyFrontendType({
       ...externalFrontend,
       ...frontendCopy
-    }, target);
+    });
   }
 
   private async applyEmptyFrontend (frontend: EmptyFrontend, target: HTMLElement): Promise<HTMLElement> {
@@ -236,7 +251,7 @@ export class FrontendsManager {
   }
 
   private async applyHtmlFrontend (frontend: HtmlFrontend, target: HTMLElement): Promise<HTMLElement> {
-    const feEl     = this.getChachedChild(target);
+    const feEl = this.getChachedChild(target);
     if(feEl.isChanged(frontend)) {
       const styles   = FrontendsManager.importAssets(frontend);
       const response = await fetch(frontend.src);
@@ -246,12 +261,13 @@ export class FrontendsManager {
     return feEl;
   }
 
-  private async applyIframeFrontend (frontend: IframeFrontend, target: HTMLElement): Promise<HTMLElement> {
+  private async applyIFrameFrontend (frontend: IFrameFrontend, target: HTMLElement): Promise<HTMLElement> {
     if(target instanceof HTMLIFrameElement) {
       FrontendsManager.importAssets(frontend);
       const el = target;
       el.setAttribute("src", frontend.src);
       this.applyElementAttributes(el, frontend);
+      this.adaptIFrame(frontend, el);
       return el;
     }
 
@@ -262,8 +278,35 @@ export class FrontendsManager {
       feEl.setChild(frontend, styles, el);
       el.setAttribute("src", frontend.src);
       this.applyElementAttributes(el, frontend);
+      this.adaptIFrame(frontend, el);
     }
     return feEl;
+  }
+
+  private adaptIFrame (frontend: IFrameFrontend, iframe: HTMLIFrameElement): void {
+    if(!frontend.scrolling) {
+      iframe.style.overflow = "hidden";
+      iframe.scrolling = "no";
+    }
+    if(frontend.adaptHeight) {
+      iframe.style.height = null;
+      iframe.style.minHeight = "0";
+      const adapt = (): void => {
+        try {
+          const height = Math.max(
+            iframe.contentWindow.document.body.scrollHeight,
+            iframe.contentWindow.document.documentElement.offsetHeight
+          );
+          iframe.style.height = `${height}px`;
+        } catch(e) {
+          //
+        }
+      };
+      if(iframe.contentWindow?.document.readyState === "complete") {
+        adapt();
+      }
+      iframe.addEventListener("load", adapt);
+    }
   }
 
   private getChachedChild (target: HTMLElement): AppiaFrontendElement {
