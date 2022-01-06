@@ -1,3 +1,4 @@
+import { AssetsManager } from "../assets/AssetsManager";
 import { AppiaFrontendElement } from "./AppiaFrontendElement";
 
 export type FrontendHookName = "prepare" | "created";
@@ -64,79 +65,26 @@ export interface FrontendsManagerConfiguration {
 }
 
 export class FrontendsManager {
-  private static importedAssets = {
-    styles: new Set(),
-    scripts: new Set(),
-    modules: new Set()
-  };
 
-  private static async importStyle (url: string): Promise<boolean> {
-    if(this.importedAssets.styles.has(url)) {
-      return false;
-    }
-    const style = this.createStyle(url);
-    document.body.appendChild(style);
-    this.importedAssets.styles.add(url);
-    return true;
-  }
-
-  private static createStyle (url: string): HTMLStyleElement {
-    const style = document.createElement("style");
-    style.setAttribute("data-appia-style", url);
-    style.innerHTML = `@import url("${url}");`;
-    return style;
-  }
-
-  private static async importScript (url: string): Promise<boolean> {
-    if(this.importedAssets.scripts.has(url)) {
-      return false;
-    }
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.setAttribute("type", "text/javascript");
-      script.setAttribute("data-appia-script", url);
-      script.setAttribute("src", url);
-      script.addEventListener("load", () => resolve(true));
-      script.addEventListener("error", () => reject(new Error(`Cannot import script asset "${url}"`)));
-      document.body.appendChild(script);
-      this.importedAssets.scripts.add(url);
-    });
-  }
-
-  private static async importModule (url: string): Promise<boolean> {
-    if(this.importedAssets.modules.has(url)) {
-      return false;
-    }
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.setAttribute("type", "module");
-      script.setAttribute("data-appia-script", url);
-      script.setAttribute("src", url);
-      script.addEventListener("load", () => resolve(true));
-      script.addEventListener("error", () => reject(new Error(`Cannot import module asset "${url}"`)));
-      document.body.appendChild(script);
-      this.importedAssets.modules.add(url);
-    });
-  }
 
   private static importAssets (frontend: Frontend): HTMLStyleElement[] {
     const result: HTMLStyleElement[] = [];
     if(frontend.assets?.scripts) {
       for(const url of frontend.assets.scripts) {
-        this.importScript(url);
+        AssetsManager.importScript(url);
       }
     }
     if(frontend.assets?.modules) {
       for(const url of frontend.assets.modules) {
-        this.importModule(url);
+        AssetsManager.importModule(url);
       }
     }
     if(frontend.assets?.styles) {
       for(const url of frontend.assets.styles) {
         if(frontend.shadowed) {
-          result.push(this.createStyle(url));
+          result.push(AssetsManager.createStyle(url));
         } else {
-          this.importStyle(url);
+          AssetsManager.importStyle(url);
         }
       }
     }

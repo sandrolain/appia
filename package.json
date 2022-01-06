@@ -18,7 +18,7 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:coverage:open": "jest --coverage && open ./coverage/lcov-report/index.html",
-    "demo:prepare": "npm run build && cp -R ./dist/ ./demo/appia/",
+    "demo:prepare": "npm run build && rm -rf ./demo/appia/ && cp -R ./dist/ ./demo/appia/",
     "demo:build": "cd ./demo && tsc -b tsconfig.json",
     "demo:serve": "npm run demo:prepare && npm run demo:build && http-server ./demo -o /",
     "docs:build": "npx typedoc ./src",
@@ -42,17 +42,17 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@rollup/plugin-node-resolve": "^13.1.1",
-    "@types/jest": "^27.0.3",
-    "@types/node": "^17.0.4",
-    "@typescript-eslint/eslint-plugin": "^5.8.0",
-    "@typescript-eslint/parser": "^5.8.0",
-    "eslint": "^8.5.0",
+    "@rollup/plugin-node-resolve": "^13.1.3",
+    "@types/jest": "^27.4.0",
+    "@types/node": "^17.0.8",
+    "@typescript-eslint/eslint-plugin": "^5.9.0",
+    "@typescript-eslint/parser": "^5.9.0",
+    "eslint": "^8.6.0",
     "happy-dom": "^2.25.1",
     "http-server": "^14.0.0",
-    "jest": "^27.4.5",
+    "jest": "^27.4.7",
     "open-cli": "^7.0.1",
-    "rollup": "^2.62.0",
+    "rollup": "^2.63.0",
     "rollup-plugin-delete": "^2.0.0",
     "rollup-plugin-terser": "^7.0.2",
     "rollup-plugin-typescript2": "^0.31.1",
@@ -61,7 +61,8 @@
     "typescript": "^4.5.4"
   },
   "dependencies": {
+    "compare-versions": "^4.1.2",
     "fast-equals": "^2.0.4",
-    "lit": "^2.0.2"
+    "lit": "^2.1.0"
   }
 }

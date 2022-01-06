@@ -16,7 +16,7 @@
     }
   },
   "include": [
-    "./*.ts"
-, "element/element-init.ts"  ],
+    "./**/*.ts"
+  ],
   "exclude": []
 }
