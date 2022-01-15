@@ -22,7 +22,6 @@ export class CustomElementsObserver {
     this.observer = new MutationObserver((mutations) => {
       for(const mutation of mutations) {
         mutation.addedNodes.forEach((node) => {
-          console.log("🚀 ~ file: CustomElementsObserver.ts ~ line 8 ~ CustomElementsObserver ~ mutation.addedNodes.forEach ~ node", node)
           this.resolveElement(node);
         });
       }

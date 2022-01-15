@@ -4,11 +4,9 @@ export type DictionaryVoice<T> = Record<string, T>;
 export type Dictionary<T> = Record<string, DictionaryVoice<T>>;
 
 export abstract class AbstractDictionaryManager<T> {
-  constructor(
+  constructor (
     protected dictionary: Dictionary<T> = {}
-  ) {
-
-  }
+  ) {}
 
   setDictionary (dictionary: Dictionary<T>): void {
     this.dictionary = dictionary;
