@@ -26,7 +26,7 @@ export class AppiaFrontendElement extends HTMLElement {
     return (!this.frontend || !deepEqual(this.frontend, frontend));
   }
 
-  setChild (frontend: Frontend, styles: HTMLStyleElement[], child?: HTMLElement | DocumentFragment): void {
+  setChild (frontend: Frontend, styles: HTMLStyleElement[], child?: Node): void {
     this.shadowRoot.textContent = "";
     this.textContent = "";
     if(frontend.shadowed) {

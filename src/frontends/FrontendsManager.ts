@@ -36,6 +36,12 @@ export interface IFrameFrontend extends AbstractFrontend, ElementAttributes {
   src: string;
   adaptHeight?: boolean;
   scrolling?: boolean;
+  sandbox?: string;
+}
+
+export interface TemplateFrontend extends AbstractFrontend, ElementAttributes {
+  type: "template";
+  template: string | HTMLTemplateElement;
 }
 
 export interface HtmlFrontend extends AbstractFrontend, ElementAttributes {
@@ -52,7 +58,7 @@ export interface ExternalFrontend extends AbstractFrontend, ElementAttributes {
   src: string;
 }
 
-export type Frontend = ElementFrontend | IFrameFrontend | HtmlFrontend | EmptyFrontend |ExternalFrontend;
+export type Frontend = ElementFrontend | IFrameFrontend | TemplateFrontend | HtmlFrontend | EmptyFrontend |ExternalFrontend;
 
 export type FrontendConfigCallback = () => (Frontend | Promise<Frontend>);
 export type FrontendConfig = Frontend | ExternalFrontend | FrontendConfigCallback;
@@ -65,8 +71,6 @@ export interface FrontendsManagerConfiguration {
 }
 
 export class FrontendsManager {
-
-
   private static importAssets (frontend: Frontend): HTMLStyleElement[] {
     const result: HTMLStyleElement[] = [];
     if(frontend.assets?.scripts) {
@@ -158,6 +162,7 @@ export class FrontendsManager {
     switch(frontend.type) {
     case "element": el = await this.applyElementFrontend(frontend, target); break;
     case "iframe": el = await this.applyIFrameFrontend(frontend, target); break;
+    case "template": el = await this.applyTemplateFrontend(frontend, target); break;
     case "html": el = await this.applyHtmlFrontend(frontend, target); break;
     case "empty": el = await this.applyEmptyFrontend(frontend, target); break;
     case "external": el = await this.applyExternalFrontend(frontend); break;
@@ -198,6 +203,20 @@ export class FrontendsManager {
     return feEl;
   }
 
+  private async applyTemplateFrontend (frontend: TemplateFrontend, target: HTMLElement): Promise<HTMLElement> {
+    const feEl = this.getChachedChild(target);
+    if(feEl.isChanged(frontend)) {
+      const styles   = FrontendsManager.importAssets(frontend);
+      let template: HTMLTemplateElement;
+      if(typeof frontend.template === "string") {
+        template = document.querySelector(frontend.template) as HTMLTemplateElement;
+      }
+      const el = template?.content.cloneNode(true) ?? document.createDocumentFragment();
+      feEl.setChild(frontend, styles, el);
+    }
+    return feEl;
+  }
+
   private async applyHtmlFrontend (frontend: HtmlFrontend, target: HTMLElement): Promise<HTMLElement> {
     const feEl = this.getChachedChild(target);
     if(feEl.isChanged(frontend)) {
@@ -232,6 +251,9 @@ export class FrontendsManager {
   }
 
   private adaptIFrame (frontend: IFrameFrontend, iframe: HTMLIFrameElement): void {
+    if(frontend.sandbox && iframe.sandbox) {
+      iframe.sandbox.add(...frontend.sandbox.split(/\s+/));
+    }
     if(!frontend.scrolling) {
       iframe.style.overflow = "hidden";
       iframe.scrolling = "no";

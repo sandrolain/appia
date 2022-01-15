@@ -59,6 +59,19 @@ router.routes = [
       shadowed: true,
       src: "/element/assets/html-fragment.html"
     })]
+  },
+  {
+    route: "/route/five",
+    frontends: [{
+      type: "template",
+      target: "#left",
+      template: "#tpl"
+    }, async (): Promise<Frontend> => ({
+      type: "html",
+      target: "#right",
+      shadowed: true,
+      src: "/element/assets/html-fragment.html"
+    })]
   }
 ];
 
